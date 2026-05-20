@@ -1,0 +1,52 @@
+<div class="container">
+  <h2>Gestión de Documentos</h2>
+
+  <div class="search-container">
+    <input 
+      type="text" 
+      [(ngModel)]="searchTerm" 
+      placeholder="Buscar por Nro Factura o Remitente..." 
+      (keyup.enter)="onSearch()"
+      class="search-input"
+    >
+    <button (click)="onSearch()" class="search-button">Buscar</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">
+    Cargando documentos...
+  </div>
+
+  <div *ngIf="!loading && documents.length === 0 && searched" class="no-results">
+    No existen registros con estos criterios de búsqueda.
+  </div>
+  
+  <table class="doc-table" *ngIf="!loading && documents.length > 0">
+    <thead>
+      <tr>
+        <th>Nro Factura</th>
+        <th>Fecha</th>
+        <th>Remitente</th>
+        <th>Datos Extraídos</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let doc of documents">
+        <td>{{ doc.invoiceNumber }}</td>
+        <td>{{ doc.date }}</td>
+        <td>{{ doc.sender }}</td>
+        <td>
+          <ul *ngIf="doc.extractedData">
+            <li *ngFor="let key of getObjectKeys(doc.extractedData)">
+              <strong>{{ key }}:</strong> {{ doc.extractedData[key] }}
+            </li>
+          </ul>
+        </td>
+        <td>
+          <button (click)="resendDoc(doc.id)" class="btn-resend">Reenviar</button>
+          <button (click)="deleteDoc(doc.id)" class="btn-delete">Eliminar</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
