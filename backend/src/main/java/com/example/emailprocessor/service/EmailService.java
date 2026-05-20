@@ -38,9 +38,12 @@ public class EmailService {
         properties.put("mail.store.protocol", "imaps");
         properties.put("mail.imaps.host", host);
         properties.put("mail.imaps.port", port);
+        properties.put("mail.imaps.ssl.enable", "true");
+        properties.put("mail.imaps.starttls.enable", "true");
+        properties.put("mail.imaps.auth", "true");
 
         try {
-            Session emailSession = Session.getDefaultInstance(properties);
+            Session emailSession = Session.getInstance(properties);
             Store store = emailSession.getStore("imaps");
             store.connect(host, user, password);
 
