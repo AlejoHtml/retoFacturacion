@@ -9,7 +9,11 @@
         placeholder="Buscar por Nro Factura o Remitente..." 
         (keyup.enter)="onSearch()"
         class="search-input"
+        list="sender-list"
       >
+      <datalist id="sender-list">
+        <option *ngFor="let sender of uniqueSenders" [value]="sender"></option>
+      </datalist>
     </div>
     <div class="date-group">
       <input type="date" [(ngModel)]="startDate" class="date-input" title="Fecha Inicio">

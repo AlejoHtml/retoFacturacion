@@ -18,11 +18,24 @@ export class DocumentListComponent implements OnInit {
   endDate: string = '';
   loading: boolean = false;
   searched: boolean = false;
+  uniqueSenders: string[] = [];
 
   constructor(private documentService: DocumentService) {}
 
   ngOnInit(): void {
     this.loadDocuments();
+    this.loadSenders();
+  }
+
+  loadSenders(): void {
+    this.documentService.getUniqueSenders().subscribe({
+      next: (senders) => {
+        this.uniqueSenders = senders || [];
+      },
+      error: (err) => {
+        console.error('Error loading senders', err);
+      }
+    });
   }
 
   loadDocuments(): void {

@@ -24,6 +24,11 @@ public class DocumentController {
         return documentService.searchDocuments(search, startDate, endDate);
     }
 
+    @GetMapping("/senders")
+    public List<String> getUniqueSenders() {
+        return documentService.getUniqueSenders();
+    }
+
     @DeleteMapping("/{id}")
     public void deleteDocument(@PathVariable String id) throws IOException {
         documentService.deleteDocument(id);

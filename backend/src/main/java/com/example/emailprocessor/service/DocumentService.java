@@ -140,6 +140,13 @@ public class DocumentService {
         return repository.findAll(Sort.by(Sort.Direction.DESC, "processedAt"));
     }
 
+    public List<String> getUniqueSenders() {
+        return mongoTemplate.query(ProcessedDocument.class)
+                .distinct("sender")
+                .as(String.class)
+                .all();
+    }
+
     public List<ProcessedDocument> searchDocuments(String criteria, String startDate, String endDate) {
         org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query();
         query.with(Sort.by(Sort.Direction.DESC, "processedAt"));

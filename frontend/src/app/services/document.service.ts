@@ -25,6 +25,10 @@ export class DocumentService {
     return this.http.get<ProcessedDocument[]>(this.apiUrl, { params });
   }
 
+  getUniqueSenders(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiUrl}/senders`);
+  }
+
   deleteDocument(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
