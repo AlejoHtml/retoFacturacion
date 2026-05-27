@@ -40,104 +40,108 @@ public class DocumentService {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
+    @Value("${file.base-path:C:/Users/alejandro.ospina/Downloads/documentoBase.xlsx}")
+    private String basePath;
+
     public void processEmailAttachment(File tempFile, String sender) throws IOException {
         String fileName = tempFile.getName().toLowerCase();
-        Map<String, String> extractedData;
-
-        // 1. Parse File based on extension
-        if (fileName.endsWith(".pdf")) {
-            extractedData = pdfParsingService.extractData(tempFile);
-        } else if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
-            extractedData = excelParsingService.extractData(tempFile);
+        
+        if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
+            processExcelBusinessLogic(tempFile, sender);
+        } else if (fileName.endsWith(".pdf")) {
+            processPdfLegacyLogic(tempFile, sender);
         } else {
             log.warn("Unsupported file type: {}", fileName);
-            return;
+        }
+    }
+
+    private void processExcelBusinessLogic(File tempFile, String sender) throws IOException {
+        log.info("Processing Excel with new business logic from sender: {}", sender);
+        
+        // 1. Load base data
+        Map<String, Double> baseData = excelParsingService.parseBaseFile(basePath);
+        
+        // 2. Parse incoming records
+        List<Map<String, Object>> incomingRecords = excelParsingService.parseIncomingFile(tempFile);
+        
+        // 3. Save file to permanent location
+        String extension = tempFile.getName().substring(tempFile.getName().lastIndexOf("."));
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        Path targetPath = Paths.get(uploadDir, "Libranza_" + timestamp + extension);
+        Files.createDirectories(targetPath.getParent());
+        Files.copy(tempFile.toPath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+        // 4. Process each record, compare and save
+        for (Map<String, Object> record : incomingRecords) {
+            String id = (String) record.get("id");
+            Double incomingValue = (Double) record.get("value");
+            Double baseValue = baseData.getOrDefault(id, 0.0);
+            Double difference = incomingValue - baseValue;
+
+            ProcessedDocument doc = new ProcessedDocument();
+            doc.setIdentification(id);
+            doc.setInstallmentValue(incomingValue);
+            doc.setDifference(difference);
+            doc.setSender(sender);
+            doc.setStatus("En Gestión");
+            doc.setProcessedAt(LocalDateTime.now());
+            doc.setFilePath(targetPath.toString());
+            doc.setDate(LocalDateTime.now().toString());
+            doc.setInvoiceNumber("LIBRANZA_" + id + "_" + timestamp);
+            
+            repository.save(doc);
         }
         
-        // 1.1 Try to enhance with AI if possible
-        String rawText = extractedData.get("rawText");
+        log.info("Processed {} employee records from Excel", incomingRecords.size());
+        // Delete temp file
+        tempFile.delete();
+    }
+
+    private void processPdfLegacyLogic(File tempFile, String sender) throws IOException {
+        String fileName = tempFile.getName().toLowerCase();
+        Map<String, String> extractedData = pdfParsingService.extractData(tempFile);
+        
+        // Try to enhance with AI if possible
+        String rawText = extractedData.get("Descripción");
         Map<String, Object> aiData = new HashMap<>();
         if (rawText != null && !rawText.isEmpty()) {
             try {
                 aiData = aiExtractionService.extractData(rawText);
-                // Merge AI data into extractedData for the legacy repository
                 aiData.forEach((k, v) -> extractedData.putIfAbsent(k, String.valueOf(v)));
             } catch (Exception e) {
-                // Fallback to basic extraction if AI fails
+                log.error("AI extraction failed", e);
             }
         }
 
         String invoiceNumber = extractedData.get("nro factura");
-        if (invoiceNumber == null || "Not found".equals(invoiceNumber) || 
-            "do".equalsIgnoreCase(invoiceNumber) || "electr".equalsIgnoreCase(invoiceNumber)) {
-            
-            invoiceNumber = (String) aiData.getOrDefault("invoice_number", 
-                            aiData.getOrDefault("nro_factura", 
-                            aiData.getOrDefault("factura", null)));
-            
-            if (invoiceNumber == null || "Not found".equals(invoiceNumber) || 
-                "do".equalsIgnoreCase(invoiceNumber) || "electr".equalsIgnoreCase(invoiceNumber)) {
-                
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy/HH:mm:ss");
-                invoiceNumber = "factura" + LocalDateTime.now().format(formatter);
-            }
-            extractedData.put("nro factura", String.valueOf(invoiceNumber));
+        if (invoiceNumber == null || "Not found".equals(invoiceNumber)) {
+            invoiceNumber = "factura_" + System.currentTimeMillis();
         }
-        // Clean invoice number for filename
         invoiceNumber = invoiceNumber.replaceAll("[^a-zA-Z0-9-_]", "_");
 
-        String date = extractedData.get("fecha");
-        if (date == null || "Not found".equals(date)) {
-            date = (String) aiData.getOrDefault("date", LocalDateTime.now().toString());
-            extractedData.put("fecha", date);
-        }
-
-        String total = extractedData.get("total");
-        if (total == null || "Not found".equals(total)) {
-            total = String.valueOf(aiData.getOrDefault("total", "0"));
-            extractedData.put("total", total);
-        }
-
-        // 2. Save file to permanent location
-        String extension = fileName.endsWith(".pdf") ? ".pdf" : (fileName.endsWith(".xlsx") ? ".xlsx" : ".xls");
-        Path targetPath = Paths.get(uploadDir, invoiceNumber + "_" + System.currentTimeMillis() + extension);
+        Path targetPath = Paths.get(uploadDir, invoiceNumber + "_" + System.currentTimeMillis() + ".pdf");
         Files.createDirectories(targetPath.getParent());
         Files.move(tempFile.toPath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-        log.info("File saved to: {}", targetPath);
 
-        // 3. Save to MongoDB (Legacy fixed collection)
         ProcessedDocument doc = new ProcessedDocument();
         doc.setInvoiceNumber(invoiceNumber);
-        doc.setDate(date);
         doc.setSender(sender);
         doc.setFilePath(targetPath.toString());
         doc.setExtractedData(extractedData);
+        doc.setStatus("En Gestión");
         doc.setProcessedAt(LocalDateTime.now());
         repository.save(doc);
-        log.info("Saved document to legacy collection 'processed_documents'");
-
-        // 4. Save to MongoDB (Dynamic collection based on AI key-value pairs)
-        // We use the "document_type" or "category" from AI to create/use a collection
-        String collectionName = (String) aiData.getOrDefault("document_type", "generic_documents");
-        // Clean collection name (no spaces, lowercase)
-        collectionName = collectionName.toLowerCase().replaceAll("\\s+", "_");
-        
-        Document dynamicDoc = new Document();
-        dynamicDoc.append("sender", sender);
-        dynamicDoc.append("processedAt", LocalDateTime.now());
-        dynamicDoc.append("filePath", targetPath.toString());
-        
-        // Add all AI extracted key-value pairs at the root level
-        for (Map.Entry<String, Object> entry : aiData.entrySet()) {
-            dynamicDoc.append(entry.getKey().replaceAll("\\.", "_"), entry.getValue());
-        }
-        
-        mongoTemplate.save(dynamicDoc, collectionName);
-        log.info("Saved dynamic document to collection '{}'", collectionName);
     }
 
     public List<ProcessedDocument> getAllDocuments() {
         return repository.findAll(Sort.by(Sort.Direction.DESC, "processedAt"));
+    }
+
+    public void updateStatus(String id, String status) {
+        ProcessedDocument doc = repository.findById(id).orElseThrow();
+        doc.setStatus(status);
+        repository.save(doc);
+        log.info("Updated document ID: {} status to: {}", id, status);
     }
 
     public List<String> getUniqueSenders() {
@@ -147,17 +151,15 @@ public class DocumentService {
                 .all();
     }
 
-    public List<ProcessedDocument> searchDocuments(String criteria, String startDate, String endDate) {
+    public List<ProcessedDocument> searchDocuments(String criteria, String startDate, String endDate, String status) {
         org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query();
         query.with(Sort.by(Sort.Direction.DESC, "processedAt"));
-        boolean hasCriteria = false;
 
         if (criteria != null && !criteria.trim().isEmpty()) {
             query.addCriteria(new org.springframework.data.mongodb.core.query.Criteria().orOperator(
-                org.springframework.data.mongodb.core.query.Criteria.where("invoiceNumber").regex(criteria, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("identification").regex(criteria, "i"),
                 org.springframework.data.mongodb.core.query.Criteria.where("sender").regex(criteria, "i")
             ));
-            hasCriteria = true;
         }
 
         if ((startDate != null && !startDate.isEmpty()) || (endDate != null && !endDate.isEmpty())) {
@@ -170,11 +172,13 @@ public class DocumentService {
                 dateCriteria.lte(LocalDateTime.parse(endDate + "T23:59:59"));
             }
             query.addCriteria(dateCriteria);
-            hasCriteria = true;
         }
 
-        if (!hasCriteria) {
-            return getAllDocuments();
+        if (status != null && !status.isEmpty()) {
+            query.addCriteria(org.springframework.data.mongodb.core.query.Criteria.where("status").is(status));
+        } else {
+            // Default to "En Gestión" if no status specified
+            query.addCriteria(org.springframework.data.mongodb.core.query.Criteria.where("status").is("En Gestión"));
         }
 
         log.info("Executing dynamic query: {}", query);

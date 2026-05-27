@@ -16,6 +16,7 @@ export class DocumentListComponent implements OnInit {
   searchTerm: string = '';
   startDate: string = '';
   endDate: string = '';
+  statusFilter: string = 'En Gestión';
   loading: boolean = false;
   searched: boolean = false;
   uniqueSenders: string[] = [];
@@ -40,7 +41,7 @@ export class DocumentListComponent implements OnInit {
 
   loadDocuments(): void {
     this.loading = true;
-    this.documentService.getDocuments(this.searchTerm, this.startDate, this.endDate).subscribe({
+    this.documentService.getDocuments(this.searchTerm, this.startDate, this.endDate, this.statusFilter).subscribe({
       next: (data) => {
         this.documents = data || [];
         this.loading = false;
@@ -78,6 +79,18 @@ export class DocumentListComponent implements OnInit {
     }
   }
 
+  updateStatus(id: string, status: string): void {
+    this.documentService.updateStatus(id, status).subscribe({
+      next: () => {
+        this.loadDocuments();
+      },
+      error: (err) => {
+        console.error('Error updating status', err);
+        alert('Error al actualizar el estado');
+      }
+    });
+  }
+
   resendDoc(id: string): void {
     const email = prompt('Ingrese el correo de destino:');
     if (email) {
@@ -99,7 +112,7 @@ export class DocumentListComponent implements OnInit {
 
   formatValue(key: string, value: any): string {
     if (typeof value !== 'string') return String(value);
-    if (key === 'rawText' && value.length > 200) {
+    if (key === 'Descripción' && value.length > 200) {
       return value.substring(0, 200) + '...';
     }
     // If the key looks like a date key, try to format it

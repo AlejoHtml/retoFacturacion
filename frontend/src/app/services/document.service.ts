@@ -11,7 +11,7 @@ export class DocumentService {
 
   constructor(private http: HttpClient) { }
 
-  getDocuments(search?: string, startDate?: string, endDate?: string): Observable<ProcessedDocument[]> {
+  getDocuments(search?: string, startDate?: string, endDate?: string, status?: string): Observable<ProcessedDocument[]> {
     let params = new HttpParams();
     if (search) {
       params = params.set('search', search);
@@ -22,6 +22,9 @@ export class DocumentService {
     if (endDate) {
       params = params.set('endDate', endDate);
     }
+    if (status) {
+      params = params.set('status', status);
+    }
     return this.http.get<ProcessedDocument[]>(this.apiUrl, { params });
   }
 
@@ -31,6 +34,12 @@ export class DocumentService {
 
   deleteDocument(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  updateStatus(id: string, status: string): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/${id}/status`, null, {
+      params: { status }
+    });
   }
 
   resendDocument(id: string, targetEmail: string): Observable<void> {

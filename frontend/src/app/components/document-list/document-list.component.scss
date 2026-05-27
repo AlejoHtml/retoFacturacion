@@ -39,6 +39,24 @@
       }
     }
 
+    .status-group {
+      .status-select {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 30px;
+        background: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        color: #2c3e50;
+        font-size: 1rem;
+        cursor: pointer;
+        outline: none;
+
+        &:focus {
+          box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+      }
+    }
+
     .date-group {
       display: flex;
       align-items: center;
@@ -131,11 +149,13 @@
       font-size: 0.85rem;
       letter-spacing: 1px;
 
-      &:nth-child(1) { width: 10%; } // Nro Factura
-      &:nth-child(2) { width: 12%; } // Fecha
-      &:nth-child(3) { width: 10%; } // Remitente
-      &:nth-child(4) { width: 53%; } // Datos Extraídos
-      &:nth-child(5) { width: 15%; } // Acciones
+      &:nth-child(1) { width: 15%; } // Identificación
+      &:nth-child(2) { width: 12%; } // Cuota
+      &:nth-child(3) { width: 12%; } // Diferencia
+      &:nth-child(4) { width: 15%; } // Fecha
+      &:nth-child(5) { width: 15%; } // Remitente
+      &:nth-child(6) { width: 15%; } // Estado
+      &:nth-child(7) { width: 16%; } // Acciones
     }
 
     tbody tr {
@@ -184,9 +204,9 @@
       }
     }
 
-    .btn-delete {
-      background-color: #fff5f5;
-      color: #e74c3c;
+    .btn-manage {
+      background-color: #ebfbee;
+      color: #2ecc71;
       border: none;
       padding: 10px 20px;
       border-radius: 10px;
@@ -195,8 +215,22 @@
       transition: all 0.2s ease;
 
       &:hover {
-        background-color: #e74c3c;
+        background-color: #2ecc71;
         color: white;
+      }
+    }
+
+    .status-badge {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background-color: #e0e0e0;
+      color: #616161;
+
+      &.status-pending {
+        background-color: #e3f2fd;
+        color: #1976d2;
       }
     }
   }

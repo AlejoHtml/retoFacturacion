@@ -19,9 +19,10 @@ public class DocumentController {
     public List<ProcessedDocument> getDocuments(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String status) {
         
-        return documentService.searchDocuments(search, startDate, endDate);
+        return documentService.searchDocuments(search, startDate, endDate, status);
     }
 
     @GetMapping("/senders")
@@ -32,6 +33,11 @@ public class DocumentController {
     @DeleteMapping("/{id}")
     public void deleteDocument(@PathVariable String id) throws IOException {
         documentService.deleteDocument(id);
+    }
+
+    @PutMapping("/{id}/status")
+    public void updateStatus(@PathVariable String id, @RequestParam String status) {
+        documentService.updateStatus(id, status);
     }
 
     @PostMapping("/{id}/resend")

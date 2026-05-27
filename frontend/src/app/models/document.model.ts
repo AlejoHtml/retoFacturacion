@@ -6,4 +6,8 @@ export interface ProcessedDocument {
   filePath: string;
   extractedData: { [key: string]: string };
   processedAt: string;
+  identification?: string;
+  installmentValue?: number;
+  difference?: number;
+  status?: string;
 }

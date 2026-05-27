@@ -6,7 +6,7 @@
       <input 
         type="text" 
         [(ngModel)]="searchTerm" 
-        placeholder="Buscar por Nro Factura o Remitente..." 
+        placeholder="Identificación o Remitente..." 
         (keyup.enter)="onSearch()"
         class="search-input"
         list="sender-list"
@@ -14,6 +14,12 @@
       <datalist id="sender-list">
         <option *ngFor="let sender of uniqueSenders" [value]="sender"></option>
       </datalist>
+    </div>
+    <div class="status-group">
+      <select [(ngModel)]="statusFilter" class="status-select" (change)="onSearch()">
+        <option value="En Gestión">En Gestión</option>
+        <option value="Gestionado">Gestionado</option>
+      </select>
     </div>
     <div class="date-group">
       <input type="date" [(ngModel)]="startDate" class="date-input" title="Fecha Inicio">
@@ -36,30 +42,33 @@
   <table class="doc-table" *ngIf="!loading && documents.length > 0">
     <thead>
       <tr>
-        <th>Nro Factura</th>
+        <th>Identificación</th>
+        <th>Cuota</th>
+        <th>Diferencia</th>
         <th>Fecha</th>
         <th>Remitente</th>
-        <th>Datos Extraídos</th>
+        <th>Estado</th>
         <th>Acciones</th>
       </tr>
     </thead>
     <tbody>
       <tr *ngFor="let doc of documents">
-        <td>{{ doc.invoiceNumber }}</td>
+        <td>{{ doc.identification || 'N/A' }}</td>
+        <td>{{ doc.installmentValue | currency:'USD':'symbol':'1.0-0' }}</td>
+        <td [style.color]="(doc.difference || 0) !== 0 ? 'red' : 'green'">
+          {{ doc.difference | currency:'USD':'symbol':'1.0-0' }}
+        </td>
         <td>{{ formatDate(doc.date) }}</td>
         <td>{{ doc.sender }}</td>
         <td>
-          <ul *ngIf="doc.extractedData">
-            <ng-container *ngFor="let key of getObjectKeys(doc.extractedData)">
-              <li *ngIf="key !== 'nro factura'">
-                <strong>{{ key }}:</strong> {{ formatValue(key, doc.extractedData[key]) }}
-              </li>
-            </ng-container>
-          </ul>
+          <span class="status-badge" [class.status-pending]="!doc.status || doc.status === 'En Gestión'">
+            {{ doc.status || 'En Gestión' }}
+          </span>
         </td>
         <td>
-          <button (click)="resendDoc(doc.id)" class="btn-resend">Reenviar</button>
-          <button (click)="deleteDoc(doc.id)" class="btn-delete">Eliminar</button>
+          <button *ngIf="!doc.status || doc.status === 'En Gestión'" (click)="updateStatus(doc.id, 'Gestionado')" class="btn-manage">
+            Marcar Gestionado
+          </button>
         </td>
       </tr>
     </tbody>

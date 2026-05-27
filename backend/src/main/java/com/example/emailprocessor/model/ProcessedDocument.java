@@ -18,4 +18,10 @@ public class ProcessedDocument {
     private String filePath;
     private Map<String, String> extractedData;
     private LocalDateTime processedAt;
+
+    // New fields for employee records
+    private String identification;
+    private Double installmentValue;
+    private Double difference;
+    private String status; // "En Gestión" or "Gestionado"
 }

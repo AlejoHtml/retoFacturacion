@@ -24,10 +24,9 @@ public class PdfParsingService {
             // Basic regex patterns for extraction (more flexible with word boundaries)
             data.put("nro factura", findValue(text, "\\b(?:nro factura|factura nro|nro de factura|invoice number|invoice|factura|nro|no)\\b\\s*[:#]?\\s*([a-zA-Z0-9-]+)"));
             data.put("fecha", findValue(text, "\\b(?:fecha factura|fecha hora factura|fecha de emision|fecha|date|invoice date)\\b\\s*[:]?\\s*([\\d]{1,2}[/-][\\d]{1,2}[/-][\\d]{2,4}|[\\d]{4}[/-][\\d]{1,2}[/-][\\d]{1,2})"));
-            data.put("total", findValue(text, "\\b(?:total a pagar|total factura|valor total|monto total|total amount|total|valor|monto|amount)\\b\\s*[:$]?\\s*([\\d.,]+)"));
             
             // Store the full text for AI processing
-            data.put("rawText", text);
+            data.put("Descripción", text);
         }
         return data;
     }

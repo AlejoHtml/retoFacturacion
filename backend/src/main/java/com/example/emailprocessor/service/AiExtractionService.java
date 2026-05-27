@@ -53,7 +53,7 @@ public class AiExtractionService {
         Map<String, String> systemMessage = new HashMap<>();
         systemMessage.put("role", "system");
         systemMessage.put("content", "You are a document data extractor. Extract all relevant key-value pairs from the text. " +
-                "Specifically look for 'invoice_number', 'date', 'total', and 'document_type'. " +
+                "Specifically look for 'invoice_number', 'date', and 'document_type'. " +
                 "IMPORTANT: The 'invoice_number' must be the full alphanumeric code. Do NOT return partial words like 'do' or 'no'. " +
                 "Return ONLY a valid JSON object with these keys and any others you find.");
         messages.add(systemMessage);
