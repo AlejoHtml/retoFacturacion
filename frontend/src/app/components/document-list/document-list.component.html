@@ -46,9 +46,11 @@
         <td>{{ doc.sender }}</td>
         <td>
           <ul *ngIf="doc.extractedData">
-            <li *ngFor="let key of getObjectKeys(doc.extractedData)">
-              <strong>{{ key }}:</strong> {{ formatValue(key, doc.extractedData[key]) }}
-            </li>
+            <ng-container *ngFor="let key of getObjectKeys(doc.extractedData)">
+              <li *ngIf="key !== 'nro factura'">
+                <strong>{{ key }}:</strong> {{ formatValue(key, doc.extractedData[key]) }}
+              </li>
+            </ng-container>
           </ul>
         </td>
         <td>

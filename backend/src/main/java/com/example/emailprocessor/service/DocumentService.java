@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -20,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -66,10 +68,19 @@ public class DocumentService {
         }
 
         String invoiceNumber = extractedData.get("nro factura");
-        if (invoiceNumber == null || "Not found".equals(invoiceNumber)) {
+        if (invoiceNumber == null || "Not found".equals(invoiceNumber) || 
+            "do".equalsIgnoreCase(invoiceNumber) || "electr".equalsIgnoreCase(invoiceNumber)) {
+            
             invoiceNumber = (String) aiData.getOrDefault("invoice_number", 
                             aiData.getOrDefault("nro_factura", 
-                            aiData.getOrDefault("factura", "UNKNOWN_" + System.currentTimeMillis())));
+                            aiData.getOrDefault("factura", null)));
+            
+            if (invoiceNumber == null || "Not found".equals(invoiceNumber) || 
+                "do".equalsIgnoreCase(invoiceNumber) || "electr".equalsIgnoreCase(invoiceNumber)) {
+                
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy/HH:mm:ss");
+                invoiceNumber = "factura" + LocalDateTime.now().format(formatter);
+            }
             extractedData.put("nro factura", String.valueOf(invoiceNumber));
         }
         // Clean invoice number for filename
@@ -126,11 +137,12 @@ public class DocumentService {
     }
 
     public List<ProcessedDocument> getAllDocuments() {
-        return repository.findAll();
+        return repository.findAll(Sort.by(Sort.Direction.DESC, "processedAt"));
     }
 
     public List<ProcessedDocument> searchDocuments(String criteria, String startDate, String endDate) {
         org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query();
+        query.with(Sort.by(Sort.Direction.DESC, "processedAt"));
         boolean hasCriteria = false;
 
         if (criteria != null && !criteria.trim().isEmpty()) {

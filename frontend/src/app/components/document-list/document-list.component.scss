@@ -130,6 +130,12 @@
       text-transform: uppercase;
       font-size: 0.85rem;
       letter-spacing: 1px;
+
+      &:nth-child(1) { width: 10%; } // Nro Factura
+      &:nth-child(2) { width: 12%; } // Fecha
+      &:nth-child(3) { width: 10%; } // Remitente
+      &:nth-child(4) { width: 53%; } // Datos Extraídos
+      &:nth-child(5) { width: 15%; } // Acciones
     }
 
     tbody tr {
