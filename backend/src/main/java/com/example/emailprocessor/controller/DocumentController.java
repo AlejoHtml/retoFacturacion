@@ -17,19 +17,11 @@ public class DocumentController {
 
     @GetMapping
     public List<ProcessedDocument> getDocuments(
-            @RequestParam(required = false) String invoiceNumber,
-            @RequestParam(required = false) String sender,
-            @RequestParam(required = false) String date,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
         
-        if (search != null && !search.isEmpty()) {
-            return documentService.searchDocuments(search);
-        }
-        
-        if (invoiceNumber == null && sender == null && date == null) {
-            return documentService.getAllDocuments();
-        }
-        return documentService.searchDocuments(invoiceNumber, sender, date);
+        return documentService.searchDocuments(search, startDate, endDate);
     }
 
     @DeleteMapping("/{id}")

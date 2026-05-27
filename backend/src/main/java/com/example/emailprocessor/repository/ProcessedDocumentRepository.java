@@ -5,6 +5,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -20,6 +21,4 @@ public interface ProcessedDocumentRepository extends MongoRepository<ProcessedDo
             "] }")
     List<ProcessedDocument> findByFilters(String invoiceNumber, String sender, String date);
 
-    @Query("{ $or: [ { 'invoiceNumber': { $regex: ?0, $options: 'i' } }, { 'sender': { $regex: ?0, $options: 'i' } } ] }")
-    List<ProcessedDocument> searchDocuments(String criteria);
 }

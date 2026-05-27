@@ -7,7 +7,7 @@ import { DocumentListComponent } from './components/document-list/document-list.
   imports: [DocumentListComponent],
   template: `
     <div style="padding: 20px; background-color: #007bff; color: white; border-bottom: 1px solid #0056b3;">
-      <h1 style="margin: 0;">Email Processor AI</h1>
+      <h1 style="margin: 0;">Reto 4 Facturación</h1>
     </div>
     <main style="padding: 20px;">
       <app-document-list></app-document-list>

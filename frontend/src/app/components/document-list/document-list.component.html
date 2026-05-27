@@ -2,13 +2,20 @@
   <h2>Gestión de Documentos</h2>
 
   <div class="search-container">
-    <input 
-      type="text" 
-      [(ngModel)]="searchTerm" 
-      placeholder="Buscar por Nro Factura o Remitente..." 
-      (keyup.enter)="onSearch()"
-      class="search-input"
-    >
+    <div class="search-group">
+      <input 
+        type="text" 
+        [(ngModel)]="searchTerm" 
+        placeholder="Buscar por Nro Factura o Remitente..." 
+        (keyup.enter)="onSearch()"
+        class="search-input"
+      >
+    </div>
+    <div class="date-group">
+      <input type="date" [(ngModel)]="startDate" class="date-input" title="Fecha Inicio">
+      <span>a</span>
+      <input type="date" [(ngModel)]="endDate" class="date-input" title="Fecha Fin">
+    </div>
     <button (click)="onSearch()" class="search-button">Buscar</button>
   </div>
 
@@ -16,8 +23,10 @@
     Cargando documentos...
   </div>
 
-  <div *ngIf="!loading && documents.length === 0 && searched" class="no-results">
-    No existen registros con estos criterios de búsqueda.
+  <div *ngIf="!loading && documents.length === 0 && searched" class="no-results-container">
+    <div class="no-results-icon">🔍</div>
+    <p>No se encontraron documentos que coincidan con los criterios de búsqueda.</p>
+    <p class="no-results-sub">Intenta ajustar los filtros o el rango de fechas.</p>
   </div>
   
   <table class="doc-table" *ngIf="!loading && documents.length > 0">
@@ -33,12 +42,12 @@
     <tbody>
       <tr *ngFor="let doc of documents">
         <td>{{ doc.invoiceNumber }}</td>
-        <td>{{ doc.date }}</td>
+        <td>{{ formatDate(doc.date) }}</td>
         <td>{{ doc.sender }}</td>
         <td>
           <ul *ngIf="doc.extractedData">
             <li *ngFor="let key of getObjectKeys(doc.extractedData)">
-              <strong>{{ key }}:</strong> {{ doc.extractedData[key] }}
+              <strong>{{ key }}:</strong> {{ formatValue(key, doc.extractedData[key]) }}
             </li>
           </ul>
         </td>

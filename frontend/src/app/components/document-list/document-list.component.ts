@@ -14,6 +14,8 @@ import { ProcessedDocument } from '../../models/document.model';
 export class DocumentListComponent implements OnInit {
   documents: ProcessedDocument[] = [];
   searchTerm: string = '';
+  startDate: string = '';
+  endDate: string = '';
   loading: boolean = false;
   searched: boolean = false;
 
@@ -25,9 +27,9 @@ export class DocumentListComponent implements OnInit {
 
   loadDocuments(): void {
     this.loading = true;
-    this.documentService.getDocuments(this.searchTerm).subscribe({
+    this.documentService.getDocuments(this.searchTerm, this.startDate, this.endDate).subscribe({
       next: (data) => {
-        this.documents = data;
+        this.documents = data || [];
         this.loading = false;
         this.searched = true;
       },
@@ -40,6 +42,12 @@ export class DocumentListComponent implements OnInit {
   }
 
   onSearch(): void {
+    if (this.startDate && this.endDate) {
+      if (new Date(this.startDate) > new Date(this.endDate)) {
+        alert('La fecha de inicio no puede ser mayor a la fecha de fin');
+        return;
+      }
+    }
     this.loadDocuments();
   }
 
@@ -74,5 +82,36 @@ export class DocumentListComponent implements OnInit {
 
   getObjectKeys(obj: any): string[] {
     return obj ? Object.keys(obj) : [];
+  }
+
+  formatValue(key: string, value: any): string {
+    if (typeof value !== 'string') return String(value);
+    if (key === 'rawText' && value.length > 200) {
+      return value.substring(0, 200) + '...';
+    }
+    // If the key looks like a date key, try to format it
+    if (key.toLowerCase().includes('fecha') || key.toLowerCase().includes('date')) {
+      return this.formatDate(value);
+    }
+    return value;
+  }
+
+  formatDate(dateStr: string): string {
+    if (!dateStr || dateStr === 'Not found') return dateStr;
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr; // Return original if not a valid date
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      
+      return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    } catch (e) {
+      return dateStr;
+    }
   }
 }

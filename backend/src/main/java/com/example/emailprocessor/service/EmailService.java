@@ -77,24 +77,30 @@ public class EmailService {
 
             // Usamos SentDateTerm que suele ser más consistente en Gmail
             SearchTerm dateTerm = new SentDateTerm(ComparisonTerm.GT, lastMonth);
-            // Filtramos por remitente directamente en la búsqueda IMAP
-            SearchTerm fromTerm = new FromStringTerm(senderFilter);
-            SearchTerm combinedTerm = new AndTerm(dateTerm, fromTerm);
             
-            Message[] messages = emailFolder.search(combinedTerm);
+            // Buscamos todos los mensajes del último mes
+            Message[] messages = emailFolder.search(dateTerm);
 
-            log.info("Found {} total messages from {} in the last month (checking for unread...)", messages.length, senderFilter);
+            log.info("Found {} total messages in the last month. Filtering by senders: {}", messages.length, senderFilter);
+
+            String[] allowedSenders = senderFilter.toLowerCase().split(",");
 
             for (Message message : messages) {
                 try {
-                    String from = message.getFrom()[0].toString();
-                    if (!message.isSet(Flags.Flag.SEEN)) {
+                    String from = message.getFrom()[0].toString().toLowerCase();
+                    boolean isAllowed = false;
+                    for (String allowed : allowedSenders) {
+                        if (from.contains(allowed.trim())) {
+                            isAllowed = true;
+                            break;
+                        }
+                    }
+
+                    if (isAllowed && !message.isSet(Flags.Flag.SEEN)) {
                         log.info("Processing unread message from: {} - Subject: {}", from, message.getSubject());
                         processMessage(message, from);
                         // Mark as read
                         message.setFlag(Flags.Flag.SEEN, true);
-                    } else {
-                        log.debug("Skipping already seen message: {}", message.getSubject());
                     }
                 } catch (Exception e) {
                     log.error("Error processing message: " + message.getSubject(), e);
@@ -116,11 +122,15 @@ public class EmailService {
         if (content instanceof Multipart multipart) {
             for (int i = 0; i < multipart.getCount(); i++) {
                 BodyPart bodyPart = multipart.getBodyPart(i);
+                String fileName = bodyPart.getFileName();
                 if (Part.ATTACHMENT.equalsIgnoreCase(bodyPart.getDisposition()) &&
-                    bodyPart.getFileName() != null && 
-                    bodyPart.getFileName().toLowerCase().endsWith(".pdf")) {
+                    fileName != null && 
+                    (fileName.toLowerCase().endsWith(".pdf") || 
+                     fileName.toLowerCase().endsWith(".xls") || 
+                     fileName.toLowerCase().endsWith(".xlsx"))) {
                     
-                    File tempFile = File.createTempFile("attachment", ".pdf");
+                    String extension = fileName.substring(fileName.lastIndexOf("."));
+                    File tempFile = File.createTempFile("attachment", extension);
                     try (InputStream is = bodyPart.getInputStream();
                          FileOutputStream fos = new FileOutputStream(tempFile)) {
                         byte[] buffer = new byte[4096];

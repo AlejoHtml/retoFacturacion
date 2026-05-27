@@ -30,6 +30,7 @@ public class DocumentService {
 
     private final ProcessedDocumentRepository repository;
     private final PdfParsingService pdfParsingService;
+    private final ExcelParsingService excelParsingService;
     private final AiExtractionService aiExtractionService;
     private final JavaMailSender mailSender;
     private final MongoTemplate mongoTemplate;
@@ -38,8 +39,18 @@ public class DocumentService {
     private String uploadDir;
 
     public void processEmailAttachment(File tempFile, String sender) throws IOException {
-        // 1. Parse PDF
-        Map<String, String> extractedData = pdfParsingService.extractData(tempFile);
+        String fileName = tempFile.getName().toLowerCase();
+        Map<String, String> extractedData;
+
+        // 1. Parse File based on extension
+        if (fileName.endsWith(".pdf")) {
+            extractedData = pdfParsingService.extractData(tempFile);
+        } else if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
+            extractedData = excelParsingService.extractData(tempFile);
+        } else {
+            log.warn("Unsupported file type: {}", fileName);
+            return;
+        }
         
         // 1.1 Try to enhance with AI if possible
         String rawText = extractedData.get("rawText");
@@ -77,7 +88,8 @@ public class DocumentService {
         }
 
         // 2. Save file to permanent location
-        Path targetPath = Paths.get(uploadDir, invoiceNumber + "_" + System.currentTimeMillis() + ".pdf");
+        String extension = fileName.endsWith(".pdf") ? ".pdf" : (fileName.endsWith(".xlsx") ? ".xlsx" : ".xls");
+        Path targetPath = Paths.get(uploadDir, invoiceNumber + "_" + System.currentTimeMillis() + extension);
         Files.createDirectories(targetPath.getParent());
         Files.move(tempFile.toPath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         log.info("File saved to: {}", targetPath);
@@ -117,20 +129,39 @@ public class DocumentService {
         return repository.findAll();
     }
 
-    public List<ProcessedDocument> searchDocuments(String criteria) {
-        if (criteria == null || criteria.trim().isEmpty()) {
+    public List<ProcessedDocument> searchDocuments(String criteria, String startDate, String endDate) {
+        org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query();
+        boolean hasCriteria = false;
+
+        if (criteria != null && !criteria.trim().isEmpty()) {
+            query.addCriteria(new org.springframework.data.mongodb.core.query.Criteria().orOperator(
+                org.springframework.data.mongodb.core.query.Criteria.where("invoiceNumber").regex(criteria, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("sender").regex(criteria, "i")
+            ));
+            hasCriteria = true;
+        }
+
+        if ((startDate != null && !startDate.isEmpty()) || (endDate != null && !endDate.isEmpty())) {
+            org.springframework.data.mongodb.core.query.Criteria dateCriteria = org.springframework.data.mongodb.core.query.Criteria.where("processedAt");
+            
+            if (startDate != null && !startDate.isEmpty()) {
+                dateCriteria.gte(LocalDateTime.parse(startDate + "T00:00:00"));
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                dateCriteria.lte(LocalDateTime.parse(endDate + "T23:59:59"));
+            }
+            query.addCriteria(dateCriteria);
+            hasCriteria = true;
+        }
+
+        if (!hasCriteria) {
             return getAllDocuments();
         }
-        return repository.searchDocuments(criteria);
+
+        log.info("Executing dynamic query: {}", query);
+        return mongoTemplate.find(query, ProcessedDocument.class);
     }
 
-    public List<ProcessedDocument> searchDocuments(String invoiceNumber, String sender, String date) {
-        return repository.findByFilters(
-                invoiceNumber != null ? invoiceNumber : "",
-                sender != null ? sender : "",
-                date != null ? date : ""
-        );
-    }
 
     public void deleteDocument(String id) throws IOException {
         ProcessedDocument doc = repository.findById(id).orElseThrow();
@@ -143,6 +174,7 @@ public class DocumentService {
 
     public void resendDocument(String id, String targetEmail) {
         ProcessedDocument doc = repository.findById(id).orElseThrow();
+        log.info("Resending document ID: {} to: {}. Invoice Number: {}", id, targetEmail, doc.getInvoiceNumber());
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
@@ -154,12 +186,28 @@ public class DocumentService {
             
             File file = new File(doc.getFilePath());
             if (file.exists()) {
-                helper.addAttachment(file.getName(), file);
+                String originalName = file.getName();
+                String extension = originalName.contains(".") ? originalName.substring(originalName.lastIndexOf(".")) : "";
+                
+                // Ensure invoice number is valid for a filename
+                String invoiceNum = doc.getInvoiceNumber();
+                if (invoiceNum == null || invoiceNum.trim().isEmpty() || invoiceNum.equals("Not found")) {
+                    invoiceNum = "Factura_" + id;
+                }
+                String cleanInvoiceNum = invoiceNum.replaceAll("[^a-zA-Z0-9-_]", "_");
+                String newFileName = cleanInvoiceNum + extension;
+                
+                log.info("Attaching file as: {}", newFileName);
+                helper.addAttachment(newFileName, file);
+            } else {
+                log.error("File not found at path: {}", doc.getFilePath());
             }
             
             mailSender.send(message);
+            log.info("Email sent successfully to {}", targetEmail);
         } catch (Exception e) {
-            throw new RuntimeException("Error al reenviar el documento", e);
+            log.error("Error resending document", e);
+            throw new RuntimeException("Error al reenviar el documento: " + e.getMessage(), e);
         }
     }
 }

@@ -11,18 +11,17 @@ export class DocumentService {
 
   constructor(private http: HttpClient) { }
 
-  getDocuments(filters: any = {}): Observable<ProcessedDocument[]> {
+  getDocuments(search?: string, startDate?: string, endDate?: string): Observable<ProcessedDocument[]> {
     let params = new HttpParams();
-    
-    if (typeof filters === 'string') {
-      params = params.set('search', filters);
-    } else {
-      if (filters.invoiceNumber) params = params.set('invoiceNumber', filters.invoiceNumber);
-      if (filters.sender) params = params.set('sender', filters.sender);
-      if (filters.date) params = params.set('date', filters.date);
-      if (filters.search) params = params.set('search', filters.search);
+    if (search) {
+      params = params.set('search', search);
     }
-
+    if (startDate) {
+      params = params.set('startDate', startDate);
+    }
+    if (endDate) {
+      params = params.set('endDate', endDate);
+    }
     return this.http.get<ProcessedDocument[]>(this.apiUrl, { params });
   }
 

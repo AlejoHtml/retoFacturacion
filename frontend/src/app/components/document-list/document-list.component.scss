@@ -1,69 +1,158 @@
 .container {
-  padding: 20px;
-  font-family: Arial, sans-serif;
+  padding: 40px;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f4f7f6;
+  min-height: 100vh;
 
   h2 {
-    color: #333;
-    margin-bottom: 20px;
+    color: #2c3e50;
+    margin-bottom: 30px;
+    font-weight: 300;
+    font-size: 2.5rem;
+    text-align: center;
+    letter-spacing: -1px;
   }
 
   .search-container {
-    margin-bottom: 20px;
+    margin-bottom: 40px;
     display: flex;
-    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
 
-    .search-input {
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      width: 300px;
+    .search-group {
+      .search-input {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 30px;
+        width: 350px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        font-size: 1rem;
+
+        &:focus {
+          outline: none;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+          transform: translateY(-2px);
+        }
+      }
+    }
+
+    .date-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      padding: 5px 20px;
+      border-radius: 30px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+
+      span {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+      }
+
+      .date-input {
+        border: none;
+        padding: 8px;
+        color: #2c3e50;
+        font-family: inherit;
+        outline: none;
+        cursor: pointer;
+      }
     }
 
     .search-button {
-      padding: 8px 16px;
-      background-color: #007bff;
+      padding: 12px 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 30px;
       cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 
       &:hover {
-        background-color: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
       }
     }
   }
 
-  .loading, .no-results {
-    padding: 20px;
+  .loading {
+    padding: 40px;
     text-align: center;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    margin-bottom: 20px;
+    color: #7f8c8d;
+    font-style: italic;
   }
 
-  .no-results {
-    color: #dc3545;
-    font-weight: bold;
+  .no-results-container {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    margin: 20px 0;
+
+    .no-results-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+    }
+
+    p {
+      color: #2c3e50;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .no-results-sub {
+      color: #95a5a6;
+      font-size: 0.9rem;
+      font-weight: 400;
+      margin-top: 10px;
+    }
   }
 
   .doc-table {
     width: 100%;
-    border-collapse: collapse;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #eee;
-    }
+    border-collapse: separate;
+    border-spacing: 0 15px;
+    background-color: transparent;
 
     th {
-      background-color: #f8f9fa;
-      font-weight: bold;
+      padding: 15px 25px;
+      text-align: left;
+      color: #7f8c8d;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
     }
 
-    tr:hover {
-      background-color: #f1f1f1;
+    tbody tr {
+      background-color: white;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      transition: all 0.3s ease;
+      
+      td {
+        padding: 20px 25px;
+        border: none;
+        
+        &:first-child {
+          border-radius: 15px 0 0 15px;
+        }
+        &:last-child {
+          border-radius: 0 15px 15px 0;
+        }
+      }
+
+      &:hover {
+        transform: scale(1.01);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      }
     }
 
     ul {
@@ -73,29 +162,35 @@
     }
 
     .btn-resend {
-      background-color: #28a745;
-      color: white;
+      background-color: #ebfbee;
+      color: #2ecc71;
       border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
+      padding: 10px 20px;
+      border-radius: 10px;
       cursor: pointer;
-      margin-right: 5px;
+      margin-right: 10px;
+      font-weight: 600;
+      transition: all 0.2s ease;
 
       &:hover {
-        background-color: #218838;
+        background-color: #2ecc71;
+        color: white;
       }
     }
 
     .btn-delete {
-      background-color: #dc3545;
-      color: white;
+      background-color: #fff5f5;
+      color: #e74c3c;
       border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
+      padding: 10px 20px;
+      border-radius: 10px;
       cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
 
       &:hover {
-        background-color: #c82333;
+        background-color: #e74c3c;
+        color: white;
       }
     }
   }
