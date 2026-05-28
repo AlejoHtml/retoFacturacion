@@ -8,6 +8,7 @@ export interface ProcessedDocument {
   processedAt: string;
   identification?: string;
   installmentValue?: number;
+  deduction?: number;
   difference?: number;
   status?: string;
 }

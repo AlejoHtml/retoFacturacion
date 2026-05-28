@@ -44,6 +44,7 @@
       <tr>
         <th>Identificación</th>
         <th>Cuota</th>
+        <th>Deducción</th>
         <th>Diferencia</th>
         <th>Fecha</th>
         <th>Remitente</th>
@@ -55,6 +56,7 @@
       <tr *ngFor="let doc of documents">
         <td>{{ doc.identification || 'N/A' }}</td>
         <td>{{ doc.installmentValue | currency:'USD':'symbol':'1.0-0' }}</td>
+        <td>{{ doc.deduction | currency:'USD':'symbol':'1.0-0' }}</td>
         <td [style.color]="(doc.difference || 0) !== 0 ? 'red' : 'green'">
           {{ doc.difference | currency:'USD':'symbol':'1.0-0' }}
         </td>

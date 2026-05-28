@@ -81,6 +81,7 @@ public class DocumentService {
             ProcessedDocument doc = new ProcessedDocument();
             doc.setIdentification(id);
             doc.setInstallmentValue(incomingValue);
+            doc.setDeduction(baseValue);
             doc.setDifference(difference);
             doc.setSender(sender);
             doc.setStatus("En Gestión");
@@ -128,6 +129,20 @@ public class DocumentService {
         doc.setSender(sender);
         doc.setFilePath(targetPath.toString());
         doc.setExtractedData(extractedData);
+        
+        String extractedDate = extractedData.get("fecha");
+        if (extractedDate == null || "Not found".equals(extractedDate)) {
+            doc.setDate(LocalDateTime.now().toString());
+        } else {
+            doc.setDate(extractedDate);
+        }
+
+        // Map extracted total to installmentValue for display in the table
+        String totalStr = extractedData.get("total");
+        if (totalStr != null && !"Not found".equals(totalStr)) {
+            doc.setInstallmentValue(excelParsingService.parseStringToDouble(totalStr));
+        }
+
         doc.setStatus("En Gestión");
         doc.setProcessedAt(LocalDateTime.now());
         repository.save(doc);
@@ -158,7 +173,8 @@ public class DocumentService {
         if (criteria != null && !criteria.trim().isEmpty()) {
             query.addCriteria(new org.springframework.data.mongodb.core.query.Criteria().orOperator(
                 org.springframework.data.mongodb.core.query.Criteria.where("identification").regex(criteria, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("sender").regex(criteria, "i")
+                org.springframework.data.mongodb.core.query.Criteria.where("sender").regex(criteria, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("invoiceNumber").regex(criteria, "i")
             ));
         }
 
@@ -182,7 +198,24 @@ public class DocumentService {
         }
 
         log.info("Executing dynamic query: {}", query);
-        return mongoTemplate.find(query, ProcessedDocument.class);
+        List<ProcessedDocument> documents = mongoTemplate.find(query, ProcessedDocument.class);
+        
+        // Apply business logic for differences if it's an employee record
+        try {
+            Map<String, Double> baseData = excelParsingService.parseBaseFile(basePath);
+            for (ProcessedDocument doc : documents) {
+                if (doc.getIdentification() != null && !doc.getIdentification().isEmpty()) {
+                    Double baseValue = baseData.getOrDefault(doc.getIdentification(), 0.0);
+                    Double currentValue = doc.getInstallmentValue() != null ? doc.getInstallmentValue() : 0.0;
+                    doc.setDeduction(baseValue);
+                    doc.setDifference(currentValue - baseValue);
+                }
+            }
+        } catch (IOException e) {
+            log.error("Error loading base file for difference calculation", e);
+        }
+        
+        return documents;
     }
 
 

@@ -22,6 +22,7 @@ public class ProcessedDocument {
     // New fields for employee records
     private String identification;
     private Double installmentValue;
+    private Double deduction;
     private Double difference;
     private String status; // "En Gestión" or "Gestionado"
 }
