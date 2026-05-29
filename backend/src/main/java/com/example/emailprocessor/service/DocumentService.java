@@ -75,13 +75,13 @@ public class DocumentService {
         for (Map<String, Object> record : incomingRecords) {
             String id = (String) record.get("id");
             Double incomingValue = (Double) record.get("value");
-            Double baseValue = baseData.getOrDefault(id, 0.0);
-            Double difference = incomingValue - baseValue;
+            Double deductionValue = record.get("deduction") != null ? (Double) record.get("deduction") : 0.0;
+            Double difference = incomingValue - deductionValue;
 
             ProcessedDocument doc = new ProcessedDocument();
             doc.setIdentification(id);
             doc.setInstallmentValue(incomingValue);
-            doc.setDeduction(baseValue);
+            doc.setDeduction(deductionValue);
             doc.setDifference(difference);
             doc.setSender(sender);
             doc.setStatus("En Gestión");
@@ -200,19 +200,13 @@ public class DocumentService {
         log.info("Executing dynamic query: {}", query);
         List<ProcessedDocument> documents = mongoTemplate.find(query, ProcessedDocument.class);
         
-        // Apply business logic for differences if it's an employee record
-        try {
-            Map<String, Double> baseData = excelParsingService.parseBaseFile(basePath);
-            for (ProcessedDocument doc : documents) {
-                if (doc.getIdentification() != null && !doc.getIdentification().isEmpty()) {
-                    Double baseValue = baseData.getOrDefault(doc.getIdentification(), 0.0);
-                    Double currentValue = doc.getInstallmentValue() != null ? doc.getInstallmentValue() : 0.0;
-                    doc.setDeduction(baseValue);
-                    doc.setDifference(currentValue - baseValue);
-                }
+        // Recalculate difference based on existing deduction from incoming file
+        for (ProcessedDocument doc : documents) {
+            if (doc.getIdentification() != null && !doc.getIdentification().isEmpty()) {
+                Double currentDeduction = doc.getDeduction() != null ? doc.getDeduction() : 0.0;
+                Double currentValue = doc.getInstallmentValue() != null ? doc.getInstallmentValue() : 0.0;
+                doc.setDifference(currentValue - currentDeduction);
             }
-        } catch (IOException e) {
-            log.error("Error loading base file for difference calculation", e);
         }
         
         return documents;

@@ -159,9 +159,12 @@ public class ExcelParsingService {
             int headerRowNum = findHeaderRow(sheet);
             Row headerRow = sheet.getRow(headerRowNum);
             
-            // User specified: 'cedula' for ID and 'Vr Cuota más 4x1000' for value
+            // User specified: 'cedula' for ID
             int idCol = findColumn(headerRow, "cedula", "empleado", "documento", "nit", "id");
-            int valueCol = findColumn(headerRow, "vr cuota mas 4x1000", "vr cuota mas 4x1000", "valor deduccion", "cuota", "valor");
+            // User specified: 'Vr Cuota más 4x1000' for value (cuota)
+            int valueCol = findColumn(headerRow, "vr cuota mas 4x1000", "cuota", "valor");
+            // Deducción column from incoming file - specific focus on "Valor deducción"
+            int deductionCol = findColumn(headerRow, "valor deduccion", "valor deduccion", "vr deduccion", "deduccion");
 
             // Fallback logic if columns not found by name
             if (idCol == -1) {
@@ -173,7 +176,7 @@ public class ExcelParsingService {
                 valueCol = 1;
             }
 
-            log.info("Incoming file columns (Row {}) - ID: {}, Value: {}", headerRowNum, idCol, valueCol);
+            log.info("Incoming file columns (Row {}) - ID: {}, Cuota: {}, Deduccion: {}", headerRowNum, idCol, valueCol, deductionCol);
 
             for (int i = headerRowNum + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -181,11 +184,13 @@ public class ExcelParsingService {
                 
                 String id = getCleanId(row.getCell(idCol));
                 Double value = getCellValueAsDouble(row.getCell(valueCol));
+                Double deduction = deductionCol != -1 ? getCellValueAsDouble(row.getCell(deductionCol)) : null;
                 
                 if (id != null && !id.isEmpty()) {
                     Map<String, Object> record = new HashMap<>();
                     record.put("id", id);
                     record.put("value", value);
+                    record.put("deduction", deduction);
                     records.add(record);
                 }
             }
