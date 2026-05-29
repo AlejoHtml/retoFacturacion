@@ -71,6 +71,9 @@
           <button *ngIf="!doc.status || doc.status === 'En Gestión'" (click)="updateStatus(doc.id, 'Gestionado')" class="btn-manage">
             Marcar Gestionado
           </button>
+          <button *ngIf="doc.status === 'Gestionado'" (click)="updateStatus(doc.id, 'En Gestión')" class="btn-reopen">
+            Reabrir
+          </button>
         </td>
       </tr>
     </tbody>

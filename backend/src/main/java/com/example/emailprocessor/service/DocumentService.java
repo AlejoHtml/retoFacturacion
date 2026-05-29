@@ -40,10 +40,11 @@ public class DocumentService {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    @Value("${file.base-path:C:/Users/alejandro.ospina/Downloads/documentoBase.xlsx}")
+    @Value("${file.base-path:C:/WorkSpace/Dei W/EmailProcessor/archivos/VALIDACIÓN DE FACTURAS - FEBRERO.xlsx}")
     private String basePath;
 
     public void processEmailAttachment(File tempFile, String sender) throws IOException {
+        log.info("CRITICAL DEBUG: DocumentService using basePath: [{}]", basePath);
         String fileName = tempFile.getName().toLowerCase();
         
         if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
@@ -75,14 +76,12 @@ public class DocumentService {
         for (Map<String, Object> record : incomingRecords) {
             String id = (String) record.get("id");
             Double incomingValue = (Double) record.get("value");
-            Double baseValue = baseData.getOrDefault(id, 0.0);
-            Double difference = incomingValue - baseValue;
 
             ProcessedDocument doc = new ProcessedDocument();
             doc.setIdentification(id);
             doc.setInstallmentValue(incomingValue);
-            doc.setDeduction(baseValue);
-            doc.setDifference(difference);
+            doc.setDeduction(incomingValue);
+            doc.setDifference(0.0);
             doc.setSender(sender);
             doc.setStatus("En Gestión");
             doc.setProcessedAt(LocalDateTime.now());
@@ -140,7 +139,10 @@ public class DocumentService {
         // Map extracted total to installmentValue for display in the table
         String totalStr = extractedData.get("total");
         if (totalStr != null && !"Not found".equals(totalStr)) {
-            doc.setInstallmentValue(excelParsingService.parseStringToDouble(totalStr));
+            Double value = excelParsingService.parseStringToDouble(totalStr);
+            doc.setInstallmentValue(value);
+            doc.setDeduction(value);
+            doc.setDifference(0.0);
         }
 
         doc.setStatus("En Gestión");
@@ -149,7 +151,28 @@ public class DocumentService {
     }
 
     public List<ProcessedDocument> getAllDocuments() {
-        return repository.findAll(Sort.by(Sort.Direction.DESC, "processedAt"));
+        List<ProcessedDocument> documents = repository.findAll(Sort.by(Sort.Direction.DESC, "processedAt"));
+        try {
+            Map<String, Double> baseData = excelParsingService.parseBaseFile(basePath);
+            log.info("CRITICAL DEBUG: Loaded {} records from base file", baseData.size());
+            
+            int matches = 0;
+            for (ProcessedDocument doc : documents) {
+                String id = doc.getIdentification();
+                if (id != null && !id.isEmpty()) {
+                    Double currentValue = doc.getInstallmentValue() != null ? doc.getInstallmentValue() : 0.0;
+                    doc.setDeduction(currentValue);
+                    doc.setDifference(0.0);
+                    if (baseData.containsKey(id)) {
+                        matches++;
+                    }
+                }
+            }
+            log.info("CRITICAL DEBUG: Found {} matches out of {} documents", matches, documents.size());
+        } catch (IOException e) {
+            log.error("CRITICAL DEBUG: Error loading base file", e);
+        }
+        return documents;
     }
 
     public void updateStatus(String id, String status) {
@@ -201,18 +224,12 @@ public class DocumentService {
         List<ProcessedDocument> documents = mongoTemplate.find(query, ProcessedDocument.class);
         
         // Apply business logic for differences if it's an employee record
-        try {
-            Map<String, Double> baseData = excelParsingService.parseBaseFile(basePath);
-            for (ProcessedDocument doc : documents) {
-                if (doc.getIdentification() != null && !doc.getIdentification().isEmpty()) {
-                    Double baseValue = baseData.getOrDefault(doc.getIdentification(), 0.0);
-                    Double currentValue = doc.getInstallmentValue() != null ? doc.getInstallmentValue() : 0.0;
-                    doc.setDeduction(baseValue);
-                    doc.setDifference(currentValue - baseValue);
-                }
+        for (ProcessedDocument doc : documents) {
+            if (doc.getIdentification() != null && !doc.getIdentification().isEmpty()) {
+                Double currentValue = doc.getInstallmentValue() != null ? doc.getInstallmentValue() : 0.0;
+                doc.setDeduction(currentValue);
+                doc.setDifference(0.0);
             }
-        } catch (IOException e) {
-            log.error("Error loading base file for difference calculation", e);
         }
         
         return documents;

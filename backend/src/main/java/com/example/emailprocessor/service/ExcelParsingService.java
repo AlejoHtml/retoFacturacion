@@ -18,6 +18,8 @@ import java.util.regex.Pattern;
 @Slf4j
 public class ExcelParsingService {
 
+    private final DataFormatter dataFormatter = new DataFormatter();
+
     public Map<String, String> extractData(File excelFile) throws IOException {
         Map<String, String> data = new HashMap<>();
         StringBuilder textBuilder = new StringBuilder();
@@ -27,7 +29,6 @@ public class ExcelParsingService {
             int headerRowNum = findHeaderRow(sheet);
             Row headerRow = sheet.getRow(headerRowNum);
 
-            // If it's a structured Excel with specific columns, prioritize those
             int valueCol = findColumn(headerRow, "vr cuota más 4x1000", "vr cuota mas 4x1000", "valor deducción", "valor deduccion");
             
             if (valueCol != -1) {
@@ -41,27 +42,11 @@ public class ExcelParsingService {
                 data.put("total", String.valueOf(totalSum));
             }
 
-            // Still build text for other fields and rawText
             for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
                 Sheet s = workbook.getSheetAt(i);
                 for (Row row : s) {
                     for (Cell cell : row) {
-                        CellType type = cell.getCellType();
-                        if (type == CellType.FORMULA) {
-                            type = cell.getCachedFormulaResultType();
-                        }
-                        switch (type) {
-                            case STRING -> textBuilder.append(cell.getStringCellValue()).append(" ");
-                            case NUMERIC -> {
-                                if (DateUtil.isCellDateFormatted(cell)) {
-                                    textBuilder.append(cell.getDateCellValue()).append(" ");
-                                } else {
-                                    textBuilder.append(cell.getNumericCellValue()).append(" ");
-                                }
-                            }
-                            case BOOLEAN -> textBuilder.append(cell.getBooleanCellValue()).append(" ");
-                            default -> {}
-                        }
+                        textBuilder.append(getCellValueAsString(cell)).append(" ");
                     }
                     textBuilder.append("\n");
                 }
@@ -69,8 +54,6 @@ public class ExcelParsingService {
         }
 
         String text = textBuilder.toString();
-        
-        // Reuse the same logic as PDF for basic extraction
         data.put("nro factura", findValue(text, "(?:nro factura|factura nro|nro de factura|invoice number|invoice|factura|nro)\\s*[:#]?\\s*([a-zA-Z0-9-]+)"));
         data.put("fecha", findValue(text, "(?:fecha factura|fecha hora factura|fecha de emision|fecha|date|invoice date)\\s*[:]?\\s*([\\d]{1,2}[/-][\\d]{1,2}[/-][\\d]{2,4}|[\\d]{4}[/-][\\d]{1,2}[/-][\\d]{1,2})"));
         
@@ -91,61 +74,74 @@ public class ExcelParsingService {
         return "Not found";
     }
 
-    private final DataFormatter dataFormatter = new DataFormatter();
-
     public Map<String, Double> parseBaseFile(String path) throws IOException {
+        log.info("CRITICAL DEBUG: Starting parseBaseFile with path: [{}]", path);
         Map<String, Double> baseData = new HashMap<>();
         File file = new File(path);
+        
         if (!file.exists()) {
-            log.error("Base file not found at: {}", path);
-            return baseData;
+            log.error("CRITICAL DEBUG: File DOES NOT EXIST at path: {}", file.getAbsolutePath());
+            // Intento alternativo con ruta relativa
+            file = new File("EmailProcessor/archivos/VALIDACIÓN DE FACTURAS - FEBRERO.xlsx");
+            if (!file.exists()) {
+                log.error("CRITICAL DEBUG: File also NOT FOUND at relative path: {}", file.getAbsolutePath());
+                return baseData;
+            }
+            log.info("CRITICAL DEBUG: Found file at relative path: {}", file.getAbsolutePath());
         }
 
-        try (Workbook workbook = WorkbookFactory.create(file)) {
-            Sheet sheet = workbook.getSheetAt(0);
-            log.info("Parsing base file: {}. Sheet: {}. Rows: {}", path, sheet.getSheetName(), sheet.getLastRowNum());
+        try (FileInputStream fis = new FileInputStream(file);
+             Workbook workbook = WorkbookFactory.create(fis)) {
             
-            int headerRowNum = findHeaderRow(sheet);
-            Row headerRow = sheet.getRow(headerRowNum);
-            
-            // User specified: 'Empleado' for ID
-            int idCol = findColumn(headerRow, "empleado", "cedula", "identific", "documento");
-            if (idCol == -1) {
-                log.warn("ID column not found by name, using column 0");
-                idCol = 0;
-            }
-
-            // User requested to take the value from the LAST column of the file
-            int valueCol = headerRow.getLastCellNum() - 1;
-            
-            log.info("Base file columns (Row {}) - ID: {}, Value (Last Col): {}", headerRowNum, idCol, valueCol);
-
-            for (int i = headerRowNum + 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) continue;
+            // Intentar en todas las hojas por si los datos no están en la primera
+            for (int s = 0; s < workbook.getNumberOfSheets(); s++) {
+                Sheet sheet = workbook.getSheetAt(s);
+                log.info("CRITICAL DEBUG: Checking Sheet {}: [{}], Total rows: {}", s, sheet.getSheetName(), sheet.getLastRowNum());
                 
-                String id = getCleanId(row.getCell(idCol));
-                Double value = getCellValueAsDouble(row.getCell(valueCol));
+                if (sheet.getLastRowNum() < 1) continue;
+
+                int headerRowNum = findHeaderRow(sheet);
+                Row headerRow = sheet.getRow(headerRowNum);
+                if (headerRow == null) continue;
+
+                // Buscar columnas por nombre
+                int idCol = findColumn(headerRow, "empleado", "cedula", "identific", "documento", "nit");
+                int valueCol = findColumn(headerRow, "valor deduccion", "valor deducción", "deduccion", "deducción", "cuota");
                 
-                if (id != null && !id.isEmpty()) {
-                    baseData.put(id, value);
-                }
-            }
-            
-            if (baseData.isEmpty()) {
-                log.warn("No data was extracted from base file. Trying fallback extraction...");
+                if (idCol == -1) idCol = 0;
+                // Si no encuentra la columna de valor por nombre, usa la última como pidió el usuario
+                if (valueCol == -1) valueCol = headerRow.getLastCellNum() - 1;
+
+                log.info("CRITICAL DEBUG: Sheet {} - Using ID Col: {} and Value Col: {}", s, idCol, valueCol);
+
                 for (int i = headerRowNum + 1; i <= sheet.getLastRowNum(); i++) {
                     Row row = sheet.getRow(i);
-                    if (row != null && row.getCell(0) != null) {
-                        String id = getCleanId(row.getCell(0));
-                        Double value = getCellValueAsDouble(row.getCell(1));
-                        if (!id.isEmpty()) baseData.put(id, value);
+                    if (row == null) continue;
+                    
+                    String cleanId = getCleanId(row.getCell(idCol));
+                    
+                    // Intentar obtener el valor de la columna identificada o de la última celda de la fila
+                    Double value = 0.0;
+                    Cell valueCell = row.getCell(valueCol);
+                    if (valueCell == null || valueCell.getCellType() == CellType.BLANK) {
+                        // Fallback a la última celda real de la fila
+                        valueCell = row.getCell(row.getLastCellNum() - 1);
                     }
+                    value = getCellValueAsDouble(valueCell);
+                    
+                if (!cleanId.isEmpty()) {
+                    baseData.put(cleanId, value);
+                }
+                }
+                
+                if (!baseData.isEmpty()) {
+                    log.info("CRITICAL DEBUG: Successfully extracted {} records from sheet {}", baseData.size(), s);
+                    break; // Si encontramos datos en esta hoja, paramos
                 }
             }
-            log.info("Extracted {} records from base file", baseData.size());
+            log.info("CRITICAL DEBUG: Final total records extracted: {}", baseData.size());
         } catch (Exception e) {
-            log.error("Error parsing base file", e);
+            log.error("CRITICAL DEBUG: Error during Excel processing", e);
         }
         return baseData;
     }
@@ -154,26 +150,15 @@ public class ExcelParsingService {
         List<Map<String, Object>> records = new ArrayList<>();
         try (Workbook workbook = WorkbookFactory.create(file)) {
             Sheet sheet = workbook.getSheetAt(0);
-            log.info("Parsing incoming file: {}. Rows: {}", file.getName(), sheet.getLastRowNum());
-            
             int headerRowNum = findHeaderRow(sheet);
             Row headerRow = sheet.getRow(headerRowNum);
+            if (headerRow == null) return records;
             
-            // User specified: 'cedula' for ID and 'Vr Cuota más 4x1000' for value
             int idCol = findColumn(headerRow, "cedula", "empleado", "documento", "nit", "id");
-            int valueCol = findColumn(headerRow, "vr cuota mas 4x1000", "vr cuota mas 4x1000", "valor deduccion", "cuota", "valor");
+            int valueCol = findColumn(headerRow, "vr cuota mas 4x1000", "vr cuota más 4x1000", "valor deduccion", "cuota", "valor");
 
-            // Fallback logic if columns not found by name
-            if (idCol == -1) {
-                log.warn("ID column not found in incoming file, using column 0");
-                idCol = 0;
-            }
-            if (valueCol == -1) {
-                log.warn("Value column not found in incoming file, using column 1");
-                valueCol = 1;
-            }
-
-            log.info("Incoming file columns (Row {}) - ID: {}, Value: {}", headerRowNum, idCol, valueCol);
+            if (idCol == -1) idCol = 0;
+            if (valueCol == -1) valueCol = 1;
 
             for (int i = headerRowNum + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -189,7 +174,6 @@ public class ExcelParsingService {
                     records.add(record);
                 }
             }
-            log.info("Extracted {} records from incoming file", records.size());
         }
         return records;
     }
@@ -207,50 +191,21 @@ public class ExcelParsingService {
     }
 
     private int findHeaderRow(Sheet sheet) {
-        for (int i = 0; i <= Math.min(sheet.getLastRowNum(), 50); i++) {
+        for (int i = 0; i <= Math.min(sheet.getLastRowNum(), 20); i++) {
             Row row = sheet.getRow(i);
             if (row == null) continue;
-            
-            boolean hasId = false;
-            boolean hasValue = false;
-            
             for (Cell cell : row) {
                 String val = normalize(getCellValueAsString(cell));
-                // Check for common ID column names
-                if (val.contains("cedula") || val.contains("identific") || val.contains("documento") || 
-                    val.contains("empleado") || val.contains("nit") || val.contains("id")) {
-                    hasId = true;
+                if (val.contains("cedula") || val.contains("empleado") || val.contains("identific") || val.contains("documento") || val.contains("nit")) {
+                    return i;
                 }
-                // Check for common value column names
-                if (val.contains("cuota") || val.contains("valor") || val.contains("deduccion") || 
-                    val.contains("monto") || val.contains("total")) {
-                    hasValue = true;
-                }
-            }
-            
-            if (hasId && hasValue) {
-                log.info("Detected header row at index: {}", i);
-                return i;
             }
         }
-        log.warn("Could not detect header row with confidence, defaulting to row 0");
         return 0;
     }
 
     private int findColumn(Row row, String... keywords) {
         if (row == null) return -1;
-        
-        // First pass: look for exact or very close matches
-        for (Cell cell : row) {
-            String header = normalize(getCellValueAsString(cell));
-            for (String keyword : keywords) {
-                if (header.equals(normalize(keyword))) {
-                    return cell.getColumnIndex();
-                }
-            }
-        }
-        
-        // Second pass: look for contains
         for (Cell cell : row) {
             String header = normalize(getCellValueAsString(cell));
             for (String keyword : keywords) {
@@ -264,92 +219,71 @@ public class ExcelParsingService {
 
     private String getCellValueAsString(Cell cell) {
         if (cell == null) return "";
-        return dataFormatter.formatCellValue(cell).trim();
-    }
-
-    private String getCleanId(Cell cell) {
-        if (cell == null) return "";
-        
-        String value;
-        if (cell.getCellType() == CellType.NUMERIC) {
-            // For numeric cells, get the raw value to avoid scientific notation or formatting issues
-            double numericValue = cell.getNumericCellValue();
-            // Convert to long to remove any decimals (IDs shouldn't have them)
-            value = String.valueOf((long) numericValue);
-        } else {
-            value = getCellValueAsString(cell);
-        }
-
-        if (value == null || value.trim().isEmpty()) return "";
-        
-        // Remove any non-digit characters for IDs that are purely numeric
-        String clean = value.trim().replaceAll("[^0-9]", "");
-        
-        if (clean.isEmpty()) {
-            // If it's not purely numeric, return the trimmed original string
-            return value.trim();
-        }
-        
-        return clean;
-    }
-
-    public Double parseStringToDouble(String val) {
-        if (val == null || val.trim().isEmpty()) return 0.0;
         try {
-            // Clean currency symbols and spaces, but keep minus sign
-            String cleanVal = val.trim().replaceAll("[^\\d,.-]", "");
-            
-            if (cleanVal.isEmpty() || cleanVal.equals("-")) return 0.0;
+            return dataFormatter.formatCellValue(cell).trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
 
-            int lastComma = cleanVal.lastIndexOf(',');
-            int lastDot = cleanVal.lastIndexOf('.');
-            
-            if (lastComma != -1 && lastDot != -1) {
-                if (lastComma > lastDot) {
-                    // Format like 1.234,56 -> convert to 1234.56
-                    cleanVal = cleanVal.replace(".", "").replace(",", ".");
-                } else {
-                    // Format like 1,234.56 -> convert to 1234.56
-                    cleanVal = cleanVal.replace(",", "");
-                }
-            } else if (lastComma != -1) {
-                // Only commas present. Check if it's a decimal separator or thousands separator
-                if (cleanVal.indexOf(',') != lastComma) {
-                    // Multiple commas -> thousands separators
-                    cleanVal = cleanVal.replace(",", "");
-                } else {
-                    // Single comma -> could be decimal. In many locales it is.
-                    cleanVal = cleanVal.replace(",", ".");
-                }
-            } else if (lastDot != -1) {
-                // Only dots present. Check if it's a decimal separator or thousands separator
-                if (cleanVal.indexOf('.') != lastDot) {
-                    // Multiple dots -> thousands separators
-                    cleanVal = cleanVal.replace(".", "");
-                }
-                // If single dot, Double.parseDouble handles it correctly as decimal
+    public String getCleanId(Cell cell) {
+        if (cell == null) return "";
+        try {
+            String value;
+            if (cell.getCellType() == CellType.NUMERIC || (cell.getCellType() == CellType.FORMULA && cell.getCachedFormulaResultType() == CellType.NUMERIC)) {
+                // Usar DataFormatter para obtener la representación visual y luego limpiar
+                value = dataFormatter.formatCellValue(cell);
+            } else {
+                value = getCellValueAsString(cell);
             }
             
-            return Double.parseDouble(cleanVal);
+            // Limpieza agresiva: solo números. 
+            // Si el resultado es notación científica (contiene E), usamos BigDecimal
+            if (value.toUpperCase().contains("E") && value.matches(".*\\d.*")) {
+                try {
+                    value = new java.math.BigDecimal(value).toPlainString();
+                } catch (Exception e) {
+                    // Ignorar error de parseo
+                }
+            }
+            
+            String clean = value.trim().replaceAll("[^0-9]", "");
+            // Si después de limpiar queda vacío (ej. era un nombre), devolvemos el original trim
+            return clean.isEmpty() ? value.trim() : clean;
         } catch (Exception e) {
-            log.warn("Failed to parse numeric value from string: '{}'", val);
-            return 0.0;
+            return "";
         }
     }
 
     private Double getCellValueAsDouble(Cell cell) {
         if (cell == null) return 0.0;
-        CellType type = cell.getCellType();
-        if (type == CellType.FORMULA) {
-            type = cell.getCachedFormulaResultType();
+        try {
+            if (cell.getCellType() == CellType.NUMERIC || (cell.getCellType() == CellType.FORMULA && cell.getCachedFormulaResultType() == CellType.NUMERIC)) {
+                return cell.getNumericCellValue();
+            }
+            String val = getCellValueAsString(cell);
+            return parseStringToDouble(val);
+        } catch (Exception e) {
+            return 0.0;
         }
+    }
 
-        if (type == CellType.NUMERIC) {
-            return cell.getNumericCellValue();
+    public Double parseStringToDouble(String val) {
+        if (val == null || val.isEmpty()) return 0.0;
+        try {
+            String clean = val.replaceAll("[^\\d,.-]", "");
+            if (clean.contains(",") && clean.contains(".")) {
+                if (clean.lastIndexOf(",") > clean.lastIndexOf(".")) {
+                    clean = clean.replace(".", "").replace(",", ".");
+                } else {
+                    clean = clean.replace(",", "");
+                }
+            } else if (clean.contains(",")) {
+                clean = clean.replace(",", ".");
+            }
+            return Double.parseDouble(clean);
+        } catch (Exception e) {
+            return 0.0;
         }
-        if (type == CellType.STRING) {
-            return parseStringToDouble(cell.getStringCellValue());
-        }
-        return 0.0;
     }
 }
