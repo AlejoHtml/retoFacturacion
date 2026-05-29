@@ -2,6 +2,7 @@ package com.example.emailprocessor.controller;
 
 import com.example.emailprocessor.model.ProcessedDocument;
 import com.example.emailprocessor.service.DocumentService;
+import com.example.emailprocessor.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +15,7 @@ import java.util.List;
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final EmailService emailService;
 
     @GetMapping
     public List<ProcessedDocument> getDocuments(
@@ -42,6 +44,6 @@ public class DocumentController {
 
     @PostMapping("/{id}/resend")
     public void resendDocument(@PathVariable String id, @RequestBody String targetEmail) {
-        documentService.resendDocument(id, targetEmail);
+        emailService.resendDocument(id, targetEmail);
     }
 }

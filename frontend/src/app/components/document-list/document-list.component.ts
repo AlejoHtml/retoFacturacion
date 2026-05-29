@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { DocumentService } from '../../services/document.service';
 import { ProcessedDocument } from '../../models/document.model';
 
@@ -21,11 +22,16 @@ export class DocumentListComponent implements OnInit {
   searched: boolean = false;
   uniqueSenders: string[] = [];
 
-  constructor(private documentService: DocumentService) {}
+  constructor(private documentService: DocumentService, private router: Router) {}
 
   ngOnInit(): void {
     this.loadDocuments();
     this.loadSenders();
+  }
+
+  logout(): void {
+    localStorage.removeItem('user');
+    this.router.navigate(['/login']);
   }
 
   loadSenders(): void {

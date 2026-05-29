@@ -1,17 +1,12 @@
 import { Component } from '@angular/core';
-import { DocumentListComponent } from './components/document-list/document-list.component';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [DocumentListComponent],
+  imports: [RouterOutlet],
   template: `
-    <div style="padding: 20px; background-color: #007bff; color: white; border-bottom: 1px solid #0056b3;">
-      <h1 style="margin: 0;">Reto 4 Facturación</h1>
-    </div>
-    <main style="padding: 20px;">
-      <app-document-list></app-document-list>
-    </main>
+    <router-outlet></router-outlet>
   `,
   styles: [`
     :host {
@@ -21,5 +16,4 @@ import { DocumentListComponent } from './components/document-list/document-list.
   `]
 })
 export class AppComponent {
-  title = 'Email Processor';
 }

@@ -1,0 +1,96 @@
+<div class="login-container">
+  <!-- Formulario de Login -->
+  <div class="login-card" *ngIf="!showChangePassword && !showRegister">
+    <div class="login-header">
+      <h2>Bienvenido</h2>
+      <p>Inicie sesión en el sistema</p>
+    </div>
+    
+    <div class="form-group">
+      <label for="username">Usuario</label>
+      <input type="text" id="username" [(ngModel)]="username" placeholder="Ingrese su usuario">
+    </div>
+    
+    <div class="form-group">
+      <label for="password">Contraseña</label>
+      <input type="password" id="password" [(ngModel)]="password" placeholder="Ingrese su contraseña">
+    </div>
+    
+    <button class="btn-login" (click)="onLogin()">Ingresar</button>
+    
+    <div class="login-footer">
+      <a href="javascript:void(0)" (click)="showRegister = true; resetForm()">Registrarse</a>
+      <a href="javascript:void(0)" (click)="showRecover = true; resetForm()">¿Olvidó su contraseña?</a>
+    </div>
+  </div>
+
+  <!-- Formulario de Registro -->
+  <div class="login-card" *ngIf="showRegister">
+    <div class="login-header">
+      <h2>Registro</h2>
+      <p>Cree una nueva cuenta</p>
+    </div>
+    
+    <div class="form-group">
+      <label for="regUsername">Usuario</label>
+      <input type="text" id="regUsername" [(ngModel)]="username" placeholder="Nuevo usuario">
+    </div>
+
+    <div class="form-group">
+      <label for="regEmail">Correo Electrónico</label>
+      <input type="email" id="regEmail" [(ngModel)]="email" placeholder="correo@ejemplo.com">
+    </div>
+    
+    <div class="form-group">
+      <label for="regPassword">Contraseña</label>
+      <input type="password" id="regPassword" [(ngModel)]="password" placeholder="Nueva contraseña">
+    </div>
+    
+    <button class="btn-login" (click)="onRegister()">Registrar</button>
+    
+    <div class="login-footer">
+      <a href="javascript:void(0)" (click)="showRegister = false">Volver al Login</a>
+    </div>
+  </div>
+
+  <!-- Formulario de Recuperación -->
+  <div class="login-card" *ngIf="showRecover">
+    <div class="login-header">
+      <h2>Recuperar Contraseña</h2>
+      <p>Ingrese su correo para recibir una nueva clave</p>
+    </div>
+    
+    <div class="form-group">
+      <label for="recoverEmail">Correo Electrónico</label>
+      <input type="email" id="recoverEmail" [(ngModel)]="email" placeholder="correo@ejemplo.com">
+    </div>
+    
+    <button class="btn-login" (click)="onRecoverPassword()" [disabled]="loading">
+      {{ loading ? 'Enviando...' : 'Enviar Contraseña' }}
+    </button>
+    
+    <div class="login-footer">
+      <a href="javascript:void(0)" (click)="showRecover = false">Volver al Login</a>
+    </div>
+  </div>
+
+  <!-- Cambio de contraseña obligatorio -->
+  <div class="login-card" *ngIf="showChangePassword">
+    <div class="login-header">
+      <h2>Cambio de Contraseña</h2>
+      <p>Por favor, ingrese sus datos para actualizar su clave</p>
+    </div>
+    
+    <div class="form-group">
+      <label for="oldPassword">Contraseña Actual</label>
+      <input type="password" id="oldPassword" [(ngModel)]="password" placeholder="Contraseña actual">
+    </div>
+
+    <div class="form-group">
+      <label for="newPassword">Nueva Contraseña</label>
+      <input type="password" id="newPassword" [(ngModel)]="newPassword" placeholder="Nueva contraseña">
+    </div>
+    
+    <button class="btn-login" (click)="onChangePassword()">Cambiar Contraseña</button>
+  </div>
+</div>

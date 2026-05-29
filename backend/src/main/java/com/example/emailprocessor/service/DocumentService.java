@@ -2,15 +2,11 @@ package com.example.emailprocessor.service;
 
 import com.example.emailprocessor.model.ProcessedDocument;
 import com.example.emailprocessor.repository.ProcessedDocumentRepository;
-import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -26,22 +22,28 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class DocumentService {
+
+    private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
     private final ProcessedDocumentRepository repository;
     private final PdfParsingService pdfParsingService;
     private final ExcelParsingService excelParsingService;
     private final AiExtractionService aiExtractionService;
-    private final JavaMailSender mailSender;
     private final MongoTemplate mongoTemplate;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    @Value("${file.base-path:C:/Users/alejandro.ospina/Downloads/documentoBase.xlsx}")
-    private String basePath;
+    public DocumentService(ProcessedDocumentRepository repository, PdfParsingService pdfParsingService, 
+                           ExcelParsingService excelParsingService, AiExtractionService aiExtractionService, 
+                           MongoTemplate mongoTemplate) {
+        this.repository = repository;
+        this.pdfParsingService = pdfParsingService;
+        this.excelParsingService = excelParsingService;
+        this.aiExtractionService = aiExtractionService;
+        this.mongoTemplate = mongoTemplate;
+    }
 
     public void processEmailAttachment(File tempFile, String sender) throws IOException {
         String fileName = tempFile.getName().toLowerCase();
@@ -58,20 +60,14 @@ public class DocumentService {
     private void processExcelBusinessLogic(File tempFile, String sender) throws IOException {
         log.info("Processing Excel with new business logic from sender: {}", sender);
         
-        // 1. Load base data
-        Map<String, Double> baseData = excelParsingService.parseBaseFile(basePath);
-        
-        // 2. Parse incoming records
         List<Map<String, Object>> incomingRecords = excelParsingService.parseIncomingFile(tempFile);
         
-        // 3. Save file to permanent location
         String extension = tempFile.getName().substring(tempFile.getName().lastIndexOf("."));
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
         Path targetPath = Paths.get(uploadDir, "Libranza_" + timestamp + extension);
         Files.createDirectories(targetPath.getParent());
         Files.copy(tempFile.toPath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
-        // 4. Process each record, compare and save
         for (Map<String, Object> record : incomingRecords) {
             String id = (String) record.get("id");
             Double incomingValue = (Double) record.get("value");
@@ -94,7 +90,6 @@ public class DocumentService {
         }
         
         log.info("Processed {} employee records from Excel", incomingRecords.size());
-        // Delete temp file
         tempFile.delete();
     }
 
@@ -102,7 +97,6 @@ public class DocumentService {
         String fileName = tempFile.getName().toLowerCase();
         Map<String, String> extractedData = pdfParsingService.extractData(tempFile);
         
-        // Try to enhance with AI if possible
         String rawText = extractedData.get("Descripción");
         Map<String, Object> aiData = new HashMap<>();
         if (rawText != null && !rawText.isEmpty()) {
@@ -137,7 +131,6 @@ public class DocumentService {
             doc.setDate(extractedDate);
         }
 
-        // Map extracted total to installmentValue for display in the table
         String totalStr = extractedData.get("total");
         if (totalStr != null && !"Not found".equals(totalStr)) {
             doc.setInstallmentValue(excelParsingService.parseStringToDouble(totalStr));
@@ -193,14 +186,12 @@ public class DocumentService {
         if (status != null && !status.isEmpty()) {
             query.addCriteria(org.springframework.data.mongodb.core.query.Criteria.where("status").is(status));
         } else {
-            // Default to "En Gestión" if no status specified
             query.addCriteria(org.springframework.data.mongodb.core.query.Criteria.where("status").is("En Gestión"));
         }
 
         log.info("Executing dynamic query: {}", query);
         List<ProcessedDocument> documents = mongoTemplate.find(query, ProcessedDocument.class);
         
-        // Recalculate difference based on existing deduction from incoming file
         for (ProcessedDocument doc : documents) {
             if (doc.getIdentification() != null && !doc.getIdentification().isEmpty()) {
                 Double currentDeduction = doc.getDeduction() != null ? doc.getDeduction() : 0.0;
@@ -212,7 +203,6 @@ public class DocumentService {
         return documents;
     }
 
-
     public void deleteDocument(String id) throws IOException {
         ProcessedDocument doc = repository.findById(id).orElseThrow();
         File file = new File(doc.getFilePath());
@@ -220,44 +210,5 @@ public class DocumentService {
             file.delete();
         }
         repository.deleteById(id);
-    }
-
-    public void resendDocument(String id, String targetEmail) {
-        ProcessedDocument doc = repository.findById(id).orElseThrow();
-        log.info("Resending document ID: {} to: {}. Invoice Number: {}", id, targetEmail, doc.getInvoiceNumber());
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true);
-            
-            helper.setTo(targetEmail);
-            helper.setSubject("Reenvío de Factura: " + doc.getInvoiceNumber());
-            helper.setText("Se adjunta la información de la factura " + doc.getInvoiceNumber() + 
-                            "\nDatos extraídos: " + doc.getExtractedData().toString());
-            
-            File file = new File(doc.getFilePath());
-            if (file.exists()) {
-                String originalName = file.getName();
-                String extension = originalName.contains(".") ? originalName.substring(originalName.lastIndexOf(".")) : "";
-                
-                // Ensure invoice number is valid for a filename
-                String invoiceNum = doc.getInvoiceNumber();
-                if (invoiceNum == null || invoiceNum.trim().isEmpty() || invoiceNum.equals("Not found")) {
-                    invoiceNum = "Factura_" + id;
-                }
-                String cleanInvoiceNum = invoiceNum.replaceAll("[^a-zA-Z0-9-_]", "_");
-                String newFileName = cleanInvoiceNum + extension;
-                
-                log.info("Attaching file as: {}", newFileName);
-                helper.addAttachment(newFileName, file);
-            } else {
-                log.error("File not found at path: {}", doc.getFilePath());
-            }
-            
-            mailSender.send(message);
-            log.info("Email sent successfully to {}", targetEmail);
-        } catch (Exception e) {
-            log.error("Error resending document", e);
-            throw new RuntimeException("Error al reenviar el documento: " + e.getMessage(), e);
-        }
     }
 }

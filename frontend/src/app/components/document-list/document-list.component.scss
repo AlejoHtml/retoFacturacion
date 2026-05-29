@@ -4,13 +4,34 @@
   background-color: #f4f7f6;
   min-height: 100vh;
 
-  h2 {
-    color: #2c3e50;
+  .header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 30px;
-    font-weight: 300;
-    font-size: 2.5rem;
-    text-align: center;
-    letter-spacing: -1px;
+
+    h2 {
+      color: #2c3e50;
+      margin-bottom: 0;
+      font-weight: 300;
+      font-size: 2.5rem;
+      letter-spacing: -1px;
+    }
+
+    .btn-logout {
+      padding: 10px 20px;
+      background-color: #ffcdd2;
+      color: #c62828;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+
+      &:hover {
+        background-color: #ef9a9a;
+      }
+    }
   }
 
   .search-container {
