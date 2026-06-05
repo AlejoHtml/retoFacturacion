@@ -1,21 +1,23 @@
-**Sistema Inteligente de Gestión y Procesamiento de Correos Electrónicos**
+Intelligent Email Management and Processing System
 
-Desarrollo de una plataforma empresarial basada en **Java (Spring Boot)** y **Angular**, orientada a la automatización del procesamiento de correos electrónicos mediante Inteligencia Artificial.
+Development of an enterprise platform based on Java (Spring Boot) and Angular, designed to automate email processing using Artificial Intelligence.
 
-La solución permite la conexión dinámica a múltiples cuentas de correo utilizando los protocolos **SMTP** e **IMAP**, configurables desde la aplicación. A través de un servicio de monitoreo automatizado, el sistema accede a los correos entrantes, extrae su contenido y lo envía a un agente de Inteligencia Artificial encargado de analizar la información y obtener datos relevantes en formato clave-valor.
+The solution allows dynamic connection to multiple email accounts using SMTP and IMAP protocols, configurable from within the application. Through an automated monitoring service, the system accesses incoming emails, extracts their content, and sends it to an Artificial Intelligence agent responsible for analyzing the information and obtaining relevant data in key-value format.
 
-Los datos procesados son almacenados en **MongoDB**, permitiendo una gestión eficiente de información semiestructurada y facilitando la búsqueda, consulta y trazabilidad de los registros obtenidos desde los correos electrónicos.
+The processed data is stored in MongoDB, enabling efficient management of semi-structured information and facilitating the search, querying, and traceability of records obtained from emails.
 
-Entre las principales funcionalidades desarrolladas se encuentran:
+Key features include:
 
-* Configuración y administración de cuentas de correo mediante protocolos SMTP e IMAP.
-* Recepción y lectura automática de correos electrónicos.
-* Integración con servicios de Inteligencia Artificial para análisis y extracción de información.
-* Almacenamiento de datos estructurados y metadatos en MongoDB.
-* Desarrollo de API REST seguras para la comunicación entre frontend y backend.
-* Construcción de una interfaz web en Angular para la gestión, monitoreo y consulta de correos procesados.
-* Visualización de información extraída, estados de procesamiento y auditoría de eventos.
-* Implementación de arquitectura escalable basada en microservicios y buenas prácticas de desarrollo.
-* Gestión de autenticación, autorización y control de acceso a funcionalidades administrativas.
+Configuration and administration of email accounts using SMTP and IMAP protocols.
 
-**Tecnologías utilizadas:** Java, Spring Boot, Angular, MongoDB, REST API, SMTP, IMAP, Docker, Git, Inteligencia Artificial Generativa, JSON y Arquitectura de Microservicios.
+Automatic reception and reading of emails.
+
+Integration with Artificial Intelligence services for analysis and information extraction.
+
+Storage of structured data and metadata in MongoDB.
+Development of secure REST APIs for communication between the frontend and backend.
+Building a web interface in Angular for managing, monitoring, and querying processed emails.
+Visualization of extracted information, processing statuses, and event auditing.
+Implementation of a scalable architecture based on microservices and best development practices.
+Management of authentication, authorization, and access control for administrative functionalities.
+Technologies used: Java, Spring Boot, Angular, MongoDB, REST API, SMTP, IMAP, Docker, Git, Generative Artificial Intelligence, JSON, and Microservices Architecture.
